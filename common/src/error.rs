@@ -1,10 +1,13 @@
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum OrchError {
     DockerError(String),
     TaskNotFound(String),
     NodeNotFound(String),
     SchedulerError(String),
     NetworkError(String),
+    TaskStoreError(String),
 }
 
 impl std::fmt::Display for OrchError {
@@ -15,6 +18,7 @@ impl std::fmt::Display for OrchError {
             OrchError::NodeNotFound(id) => write!(f, "Node not found: {}", id),
             OrchError::SchedulerError(msg) => write!(f, "Scheduler error: {}", msg),
             OrchError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            OrchError::TaskStoreError(msg) => write!(f, "Task store error: {}", msg),
         }
     }
 }
