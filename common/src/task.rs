@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// 3. `Running`: The Docker container is successfully active on the Worker.
 /// 4. `Completed`: The process exited with code 0.
 /// 5. `Failed`: The process crashed or the image failed to pull.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum TaskStatus {
     Pending, // created but not scheduled
     Scheduled,
@@ -24,7 +24,7 @@ pub enum TaskStatus {
 /// A unit of work to be executed on the cluster.
 ///
 /// This struct roughly corresponds to a Kubernetes "Pod" or a single Docker container definition.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     /// Unique internal identifier
     pub id: Uuid,

@@ -1,32 +1,55 @@
 use std::collections::HashMap;
+use std::time::Duration;
+use tokio::time::sleep;
 use uuid::Uuid;
+use common::{Task, TaskStatus};
 use worker::DockerClient;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Starting Worker Node..");
+    let node_id = "worker-1";
+    let manager_url = "http://localhost:3000";
+    println!("Starting Worker {node_id}");
 
     // initialize docker client
     let docker = DockerClient::new().await?;
-    println!("Connected to Docker Daemon");
+    println!("Worker: Connected to Docker Daemon");
+    let http_client = reqwest::Client::new();
 
-    // simulate a task
-    let task_id = Uuid::new_v4();
-    let image = "nginx:latest";
-    let mut env = HashMap::new();
-    env.insert("IsRustOrch".to_string(), "true".to_string() );
+    loop {
+        let resp = http_client.get(format!("{}/tasks", &manager_url)).send().await?;
+        let tasks = resp.json::<Vec<Task>>().await?;
+        let worker_tasks = tasks
+          .into_iter()
+          .filter(|t| t.node_id.as_deref() == Some(node_id))
+          .collect::<Vec<Task>>();
+        
+        println!("Worker: tasks len: {}", worker_tasks.len());
+       
+        for task in worker_tasks {
+           match docker.start_container(&task.id.to_string(), &task.image, HashMap::new()).await {
+               Ok(container_id) => {
+                   let update_payload = serde_json::json!({
+                       "status": TaskStatus::Running,
+                       "container_id": Some(container_id.to_string()),
+                   });
 
-    // start the container
-    println!("Starting the container (Image: {})..", image);
-    let container_id = docker.start_container(&task_id.to_string(), image, env).await?;
-    println!("Started container (Image: {}).", image);
-
-    println!("sleeping for 10 seconds...");
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-    println!("stopping container...");
-    docker.stop_container(&container_id).await?;
-    println!("Container {} stopped and removed successfully.", container_id);
-
-    Ok(())
+                   let _ = http_client.put(format!("{}/tasks/{}/status", manager_url, task.id.to_string()))
+                       .json(&update_payload)
+                       .send()
+                       .await;
+                   
+                   println!("Worker: Successfully started container {}", container_id);
+               },
+               Err(e) => {
+                    eprintln!("Worker: Error starting container: {}", e);
+                    let _ = http_client.put(format!("{}/tasks/{}/status", manager_url, task.id.to_string()))
+                        .json(&serde_json::json!({"status": TaskStatus::Failed, "container_id": None::<String>}))
+                        .send()
+                        .await;
+               }
+           };
+       }
+        sleep(Duration::from_secs(5)).await;
+    };
 }

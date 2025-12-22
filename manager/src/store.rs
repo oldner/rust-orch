@@ -20,13 +20,13 @@ impl TaskStore {
         let mut task_write = self.tasks.write()
             .map_err(|e| OrchError::TaskStoreError(format!("Failed to unlock the task: {}", e)))?;
 
-        task_write.insert(task.name.clone(), task);
+        task_write.insert(task.id.to_string(), task);
 
         Ok(())
     }
 
     pub fn list_tasks(&self) -> Result<Vec<Task>, OrchError> {
-        let mut task_read = self.tasks.read()
+        let task_read = self.tasks.read()
             .map_err(|e| OrchError::TaskStoreError(format!("Failed to unlock the task: {}", e)))?;
         let list = task_read.values().cloned().collect();
 
@@ -40,6 +40,21 @@ impl TaskStore {
         let task = task_read.get(&id.to_string()).cloned();
 
         Ok(task)
+    }
+
+    pub fn assign_node(&self, id: Uuid, node_id: String) -> Result<(), OrchError> {
+        let mut task_write = self.tasks.write()
+            .map_err(|e| OrchError::TaskStoreError(format!("Failed to unlock the task: {}", e)))?;
+
+        println!("TASKS: {:#?}", task_write.values().cloned().collect::<Vec<_>>());
+
+        if let Some(task) = task_write.get_mut(&id.to_string()) {
+            task.node_id = Some(node_id);
+            task.status = TaskStatus::Scheduled;
+            Ok(())
+        } else {
+            Err(OrchError::TaskNotFound(format!("Couldn't find the task {} to assign the node {}", id, node_id)))
+        }
     }
 
     pub fn update_status(&self, id: Uuid, status: TaskStatus, container_id: Option<String>) -> Result<bool, OrchError> {
@@ -57,4 +72,6 @@ impl TaskStore {
 
         Ok(false)
     }
+
+
 }
