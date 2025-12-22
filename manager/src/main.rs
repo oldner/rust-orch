@@ -4,6 +4,7 @@ use crate::store::TaskStore;
 
 mod handlers;
 mod store;
+mod scheduler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -12,6 +13,15 @@ async fn main() -> anyhow::Result<()> {
 
     // shared between threads so we use Arc
     let shared_store = Arc::new(TaskStore::new());
+
+    // run the scheduler
+    let scheduler_store = Arc::clone(&shared_store);
+    tokio::spawn(async move {
+        match scheduler::run_scheduler_task(scheduler_store).await {
+           Ok(_) => println!("Scheduler started"), 
+            Err(e) => println!("Scheduler error: {}", e),
+        }
+    });
 
     let listener = TcpListener::bind(addr).await?;
 
