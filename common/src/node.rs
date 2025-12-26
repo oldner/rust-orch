@@ -32,3 +32,17 @@ impl Node {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_node() {
+        let node = Node::new("worker-1".to_string(), 4096, 4.0);
+        assert_eq!(node.name, "worker-1");
+        assert_eq!(node.total_memory, 4096);
+        assert_eq!(node.available_memory, 4096);
+        assert!(matches!(node.status, NodeStatus::NotReady));
+    }
+}

@@ -79,3 +79,25 @@ impl Task {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_task_defaults() {
+        let task = Task::new("test-task".to_string(), "alpine:latest".to_string());
+        assert_eq!(task.name, "test-task");
+        assert_eq!(task.image, "alpine:latest");
+        assert_eq!(task.status, TaskStatus::Pending);
+        assert!(task.node_id.is_none());
+        assert!(task.container_id.is_none());
+    }
+
+    #[test]
+    fn test_unique_ids() {
+        let task1 = Task::new("t1".to_string(), "img".to_string());
+        let task2 = Task::new("t2".to_string(), "img".to_string());
+        assert_ne!(task1.id, task2.id);
+    }
+}
